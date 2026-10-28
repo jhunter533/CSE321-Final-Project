@@ -1,0 +1,21 @@
+# table format: row contains: CRN,Course, Campus,Days, Date, Time, Location, Hrs,Type,Title,Instructor,Seats,Limit,Enroll,Waitlist,Course Fees, Bookstore Link
+# any cell can be empty so we need fall through for each
+# if there is row next to another row without a break row (idk if thats a consistent measurement)
+# if a row has no CRN it's content is part of the previous row with a CRN and must be kept together
+#same thing but sometimes its just a second instructor, sometimes its recitation, sometimes its a second meeting time with a new location but no second instruction
+# Type can be CLAS or RCT
+# Course Name is SUBJ TAG number-section
+# For some reason Labs are labeled as CLAS type but the Course Name is subj tag numberL-section
+# Time is given as start-end (no colon just string), in 24h time using NM time zone
+# Date is formated as mm/dd/yyyy-mm/dd/yyyy
+# Days are M,T,W,R,F separated by spaces for when it occurs (any combination possible)
+# An instructor is 1 per row but if more than 1 row than morethan 1 instructor, if the data cells before instructor have independent meeting time use instructor from that row if not combine them
+# Title is the human readable name and there are duplicates and its inconsistently named
+# each section has unique CRN, sections are identified by Course Name in the -section part
+# if campus is M, its in person at location if given, if campus is DE its online location may or may not say WEB WEBV, may or may not have course name of subjecttag number-sectionD if DE.
+# *Campus 	Description A 	Albuquerque DE 	Distance Education E 	DO NOT USE M 	Main O 	Off-campus SLF 	Sandia Labs Off Campus SLO 	Sandia Labs On Campus V 	Video Lectures-Live & Recorded
+# if location is WEB-V WEBV WEB V etc or no time in independent row in general how do I display that?
+# But then like for CSE 4089 means special topics so many different courses are listed under it as new sections (makes sense for transcript things to know) but titles are different and can take multiple so section restriction should not apply? cross reference course name to title?
+# while many labs are required to be taken not all labs are inherently required so dont assume
+
+
