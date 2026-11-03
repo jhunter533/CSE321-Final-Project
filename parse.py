@@ -64,9 +64,10 @@ TITLE_PREFIX_RE=re.compile(r"^[a-z]+\d*:")
 
 def find_results_table(soup:BeautifulSoup):
     for t in soup.find_all("table"):
-        ths=[th.get_text(strip=True) for th in t.find_all("th")]
-        if "CRN" in ths and "Course" in ths:
-            return t 
+        for tr in t.find_all("tr"):
+            ths=[th.get_text(strip=True) for th in tr.find_all("th",recursive=False)]
+            if "CRN" in ths and "Course" in ths:
+                return t 
     return None
 
 def extract_rows(html: str)->tuple[dict[str,int],list[list[str]]]:
@@ -74,20 +75,31 @@ def extract_rows(html: str)->tuple[dict[str,int],list[list[str]]]:
     table=find_results_table(soup)
     if table is None:
         return {},[]
-    header_row=table.find(lambda tr:tr.find("th") is not None)
-    headers=[th.get_text(strip=True) for th in header_row.find_all("th")]
+    header_row=None
+    for tr in table.find_all("tr"):
+        ths=[th.get_text(strip=True) for th in tr.find_all("th",recursive=False)]
+        if "CRN" in ths and "Course" in ths:
+            header_row=tr
+            break
+    if header_row is None:
+        return {},[]
+
+    headers=[th.get_text(strip=True) for th in header_row.find_all("th",recursive=False)]
     col={name:i for i,name in enumerate(headers)}
+    width=len(headers)
+
     rows: list[list[str]]=[]
     
     for tr in table.find_all("tr"):
         if tr.find("th"):
             continue
-        texts=[td.get_text(strip=True) for td in tr.find_all("td")]
-        if any(texts):
-            rows.append(texts)
+        texts=[td.get_text(strip=True) for td in tr.find_all("td",recursive=False)]
+        if not texts or not any(texts):
+            continue
+        if len(texts)!=width:
+            continue
+        rows.append(texts)
     return col,rows
-
-
 
 def split_course(course_str: str)->tuple[str,str,str]:
     m=COURSE_RE.match(course_str.strip())
