@@ -6,6 +6,89 @@ from pathlib import Path
 
 import parse
 
+REQUIREMENTS = [
+    (
+        "AREA1",
+        "Communications",
+        "New Mexico General Education Area 1",
+    ),
+    (
+        "AREA2",
+        "Mathematics",
+        "New Mexico General Education Area 2",
+    ),
+    (
+        "AREA3",
+        "Basic Laboratory Sciences",
+        "New Mexico General Education Area 3",
+    ),
+    (
+        "AREA4",
+        "Social Sciences",
+        "New Mexico General Education Area 4",
+    ),
+    (
+        "AREA5",
+        "Humanities",
+        "New Mexico General Education Area 5",
+    ),
+    (
+        "AREA6",
+        "Creative and Fine Arts",
+        "New Mexico General Education Area 6",
+    ),
+    (
+        "AREA7",
+        "Additional Humanities/Social Science",
+        "Additional courses from Areas 4, 5, and 6",
+    ),
+]
+REQUIREMENT_SUBJECTS = {
+    "AREA1":[
+        "ENGL",
+    ],
+    "AREA2":[
+        "MATH",
+    ],
+    "AREA3":[
+        "PHYS",
+        "CHEM",
+    ],
+    "AREA4": [
+        "PSYC",
+        "POLS",
+        "ECON",
+        "ANTH",
+        "SOSC",
+        "GNDR",
+    ],
+    "AREA5": [
+        "HIST",
+        "PHIL",
+        "COMM",
+        "ENGL",
+        "HUMA",
+        "TCOM",
+        "SPAN",
+        "PORT",
+        "GRMN",
+    ],
+    "AREA6": [
+        "MUSC",
+        "ARTS",
+        "ARTH",
+        "THEA",
+        "FDMA",
+    ],
+}
+REQUIREMENT_INCLUDES = {
+    "AREA7": [
+        "AREA4",
+        "AREA5",
+        "AREA6",
+    ],
+}
+
 DB_PATH=Path("nmt_scheduler.db")
 
 SCHEMA="""
@@ -79,17 +162,34 @@ CREATE TABLE IF NOT EXISTS Requirement (
     description TEXT
 );
 
-CREATE TABLE IF NOT EXISTS CourseRequirement (
-    course_id INTEGER NOT NULL,
+CREATE TABLE IF NOT EXISTS RequirementSubject (
     requirement_id INTEGER NOT NULL,
+    subject TEXT NOT NULL,
 
-    PRIMARY KEY (course_id, requirement_id),
-
-    FOREIGN KEY (course_id)
-        REFERENCES Course(course_id)
-        ON DELETE CASCADE,
+    PRIMARY KEY (
+        requirement_id,
+        subject
+    ),
 
     FOREIGN KEY (requirement_id)
+        REFERENCES Requirement(requirement_id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS RequirementIncludes (
+    parent_requirement_id INTEGER NOT NULL,
+    child_requirement_id INTEGER NOT NULL,
+
+    PRIMARY KEY (
+        parent_requirement_id,
+        child_requirement_id
+    ),
+
+    FOREIGN KEY (parent_requirement_id)
+        REFERENCES Requirement(requirement_id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (child_requirement_id)
         REFERENCES Requirement(requirement_id)
         ON DELETE CASCADE
 );
@@ -101,9 +201,96 @@ def connect(path: str|Path=DB_PATH)->sqlite3.Connection:
 def create_database(path:str|Path=DB_PATH)->None:
     with connect(path) as conn:
         conn.executescript(SCHEMA)
+        seed_requirements(conn)
+        conn.commit()
 def clean_title(title:str)->str:
     title=title.strip()
     return re.sub(r"^[a-z]+\d*:","",title).strip()
+def get_requirement_id(conn, code: str) -> int:
+    row = conn.execute(
+        """
+        SELECT requirement_id
+        FROM Requirement
+        WHERE code = ?
+        """,
+        (code,),
+    ).fetchone()
+
+    if row is None:
+        raise RuntimeError(
+            f"Requirement {code!r} does not exist"
+        )
+
+    return row[0]
+
+
+def seed_requirements(conn) -> None:
+    for code, name, description in REQUIREMENTS:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO Requirement (
+                code,
+                name,
+                description
+            )
+            VALUES (?, ?, ?)
+            """,
+            (
+                code,
+                name,
+                description,
+            ),
+        )
+
+    for requirement_code, subjects in REQUIREMENT_SUBJECTS.items():
+
+        requirement_id = get_requirement_id(
+            conn,
+            requirement_code,
+        )
+
+        for subject in subjects:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO RequirementSubject (
+                    requirement_id,
+                    subject
+                )
+                VALUES (?, ?)
+                """,
+                (
+                    requirement_id,
+                    subject,
+                ),
+            )
+
+    for parent_code, child_codes in REQUIREMENT_INCLUDES.items():
+
+        parent_id = get_requirement_id(
+            conn,
+            parent_code,
+        )
+
+        for child_code in child_codes:
+
+            child_id = get_requirement_id(
+                conn,
+                child_code,
+            )
+
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO RequirementIncludes (
+                    parent_requirement_id,
+                    child_requirement_id
+                )
+                VALUES (?, ?)
+                """,
+                (
+                    parent_id,
+                    child_id,
+                ),
+            )
 def get_or_create_course(conn,section)->int:
     subject=section.course.subject
     number=section.course.course_number
@@ -282,7 +469,8 @@ def print_database_summary(path)->None:
             "Instructor",
             "MeetingInstructor",
             "Requirement",
-            "CourseRequirement",
+            "RequirementSubject",
+            "RequirementIncludes",
         ]
 
         print("\nDatabase contents:")
