@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
+import uuid
 from pathlib import Path
 
 import parse
@@ -193,6 +195,80 @@ CREATE TABLE IF NOT EXISTS RequirementIncludes (
         REFERENCES Requirement(requirement_id)
         ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS Schedule (
+    schedule_id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_accessed TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ScheduleSection (
+    schedule_id TEXT NOT NULL,
+    section_id INTEGER NOT NULL,
+    added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    PRIMARY KEY (
+        schedule_id,
+        section_id
+    ),
+
+    FOREIGN KEY (schedule_id)
+        REFERENCES Schedule(schedule_id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (section_id)
+        REFERENCES Section(section_id)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS AgentLog (
+    log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    schedule_id TEXT,
+    user_id TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    input TEXT NOT NULL,
+    output TEXT NOT NULL,
+    iteration_number INTEGER NOT NULL DEFAULT 1,
+    timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (schedule_id)
+        REFERENCES Schedule(schedule_id)
+        ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_section_course
+    ON Section(course_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_section_term
+    ON Section(term);
+
+
+CREATE INDEX IF NOT EXISTS idx_meeting_section
+    ON Meeting(section_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_meeting_time
+    ON Meeting(days, start_time, end_time);
+
+
+CREATE INDEX IF NOT EXISTS idx_requirement_subject
+    ON RequirementSubject(subject);
+
+
+CREATE INDEX IF NOT EXISTS idx_schedule_section_section
+    ON ScheduleSection(section_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_agentlog_schedule
+    ON AgentLog(schedule_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_agentlog_user
+    ON AgentLog(user_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_agentlog_timestamp
+    ON AgentLog(timestamp);
 """
 def connect(path: str|Path=DB_PATH)->sqlite3.Connection:
     conn=sqlite3.connect(path)
@@ -241,7 +317,6 @@ def seed_requirements(conn) -> None:
                 description,
             ),
         )
-
     for requirement_code, subjects in REQUIREMENT_SUBJECTS.items():
 
         requirement_id = get_requirement_id(
@@ -263,7 +338,6 @@ def seed_requirements(conn) -> None:
                     subject,
                 ),
             )
-
     for parent_code, child_codes in REQUIREMENT_INCLUDES.items():
 
         parent_id = get_requirement_id(
@@ -277,7 +351,6 @@ def seed_requirements(conn) -> None:
                 conn,
                 child_code,
             )
-
             conn.execute(
                 """
                 INSERT OR IGNORE INTO RequirementIncludes (
@@ -291,6 +364,39 @@ def seed_requirements(conn) -> None:
                     child_id,
                 ),
             )
+def get_or_create_schedule(conn,session_id:str)->str:
+    row=conn.execute(
+        """
+        SELECT schedule_id FROM Schedule WHERE session_id=?
+        """,
+        (session_id,)).fetchone()
+    if row is not None:
+        schedule_id=row[0]
+        conn.execute(
+            """
+            UPDATE Schedule
+            SET last_accessed=CURRENT_TIMESTAMP
+            WHERE schedule_id=?
+            """,
+            (schedule_id,),
+        )
+        return schedule_id
+    schedule_id=str(uuid.uuid4())
+    conn.execute(
+        """
+        INSERT INTO Schedule (
+            schedule_id,
+            session_id
+        )
+        VALUES (?,?)
+        """,
+        (
+            schedule_id,
+            session_id,
+        ),
+    )
+    return schedule_id
+
 def get_or_create_course(conn,section)->int:
     subject=section.course.subject
     number=section.course.course_number
@@ -460,6 +566,120 @@ def insert_term(term,sections,path)->None:
         for section in sections:
             insert_section(conn,term,section)
         conn.commit()
+def add_section_to_schedule(conn,schedule_id: str, section_id: int)->dict:
+    section=conn.execute(
+        """
+        SELECT section_id
+        FROM Section
+        WHERE section_id=?
+        """,
+        (section_id,)).fetchone()
+    if section is None:
+        return {
+            "success":False,
+            "error":"Section does not exist",
+        }
+    existing=conn.execute(
+        """
+        SELECT 1
+        FROM ScheduleSection
+        WHERE schedule_id=? AND section_id=?
+        """,
+        (
+            schedule_id,
+            section_id,
+        )).fetchone()
+    if existing is not None:
+        return {
+                "success":False,
+                "error":"Section already in schedule",
+        }
+    conn.execute(
+        """
+        INSERT INTO ScheduleSection(schedule_id,section_id)
+        VALUES (?,?)
+        """,
+        (
+            schedule_id,
+            section_id,
+        ),
+    )
+    return {
+            "success":True,
+            "section_id":section_id,
+    }
+def remove_section_from_schedule(conn,schedule_id: str, section_id: int)->dict:
+    cursor=conn.execute(
+        """
+        DELETE FROM ScheduleSection
+        WHERE schedule_id=? AND section_id=?
+        """,
+        (
+            schedule_id,
+            section_id,
+        ),
+    )
+    if cursor.rowcount==0:
+        return {
+                "success":False,
+                "error":"Section not in schedule",
+        }
+    return {
+            "success":True,
+            "section_id":section_id,
+    }
+def get_schedule(conn,schedule_id:str)->list[dict]:
+    rows=conn.execute(
+        """
+        SELECT
+            s.section_id,
+            s.crn,
+            s.term,
+            s.section_number,
+            s.credit_hours,
+            c.course_id,
+            c.subject,
+            c.course_number,
+            c.title
+        FROM ScheduleSection AS ss
+        JOIN Section AS s ON ss.section_id=s.section_id
+        JOIN Course As c ON s.course_id=c.course_id
+        WHERE ss.schedule_id=?
+        ORDER BY c.subject, c.course_number, s.section_number
+        """,
+        (schedule_id,),
+    ).fetchall()
+    return [
+        {
+            "section_id":row[0],
+            "crn":row[1],
+            "term":row[2],
+            "section_number":row[3],
+            "credit_hours":row[4],
+            "course_id":row[5],
+            "subject":row[6],
+            "course_number":row[7],
+            "title":row[8],
+        }
+        for row in rows
+    ]
+def log_agent_tool(conn,user_id:str,tool_name:str,tool_input,tool_output,schedule_id,iteration_number:int=1)->int:
+    cursor=conn.execute(
+        """
+        INSERT INTO AgentLog(schedule_id,user_id,tool_name,input,output,iteration_number)
+        VALUES (?,?,?,?,?,?)
+        """,
+        (
+            schedule_id,
+            user_id,
+            tool_name,
+            json.dumps(tool_input),
+            json.dumps(tool_output),
+            iteration_number,
+        ),
+    )
+    return cursor.lastrowid
+
 def print_database_summary(path)->None:
     with connect(path) as conn:
         tables = [
@@ -471,6 +691,9 @@ def print_database_summary(path)->None:
             "Requirement",
             "RequirementSubject",
             "RequirementIncludes",
+            "Schedule",
+            "ScheduleSection",
+            "AgentLog",
         ]
 
         print("\nDatabase contents:")

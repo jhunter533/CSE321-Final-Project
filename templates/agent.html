@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>NMT Scheduler - Course Suggestiong Form</title>
+	</head>
+	<body>
+		<h1> Suggest a Course</h1>
+		<form method="POST" action="/agent">
+			<div>
+				<label for="requirement_section">
+					Requirement / Section:
+				</label>
+				<select id="requirement_section" name="requirement_section" required>
+					<option value="">
+						Select a Requirement Area of Subject
+					</option>
+					<optgroup label="General Education Areas">
+						{% for requirement in requirements %}
+							<option value="{{ requirement.code }}">
+							{{ requirement.code }} - {{ requirement.name }}
+							</option>
+						{% endfor %}
+					</optgroup>
+					<optgroup label="Subjects">
+						{% for subject in subjects %}
+							<option value="{{ subject }}">
+								{{ subject }}
+						</option>
+						{% endfor %}
+					</optgroup>
+				</select>
+			</div>
+			<br>
+			<div>
+				<label for="avoid_day">
+					Avoid Day:
+				</label>
+				<select id="avoid_day" name="avoid_day">
+					<option value="">
+						No day restriction
+					</option>
+					<option value="Monday">
+						Monday
+					</option>
+					<option value="Tuesday">
+						Tuesday
+					</option>
+					<option value="Wednesday">
+						Wednesday
+					</option>
+					<option value="Thursday">
+						Thursday
+					</option>
+					<option value="Friday">
+						Friday
+					</option>
+					<option value="Saturday">
+						Saturday
+					</option>
+					<option value="Sunday">
+						Sunday
+					</option>
+				</select>
+			</div>
+			<br>
+			<button type="submit">Suggest Course</button>
+		</form>
+		{% if response %}
+			<hr>
+			<h2> AI Response</h2>
+			<p>
+				{{ response }}
+			</p>
+		{% endif %}
+	</body>
+</html>

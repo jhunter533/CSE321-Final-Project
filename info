@@ -1,0 +1,10 @@
+the schema.sql is  bar for bar same as the code in python, dont run the file it has no data so it wont work right
+
+sample_session.sql is to create demo data of real user course selections from the reason db,to see the courses which were put into the demo schedule table do: sqlite3 nmt_scheduler.db <sql/sample_session.sql 
+
+services.py is the tool function service side (strictly just python and using the database stuff), the endpoints and actual tool connection should be done through wrapping them as new endpoint versions with Flask which just calls those
+
+templates/agent.html is the starter html form for this milestone for the agent to use and stuff
+its got avoid-day dropdown and the requirement dropdown and then a response area the suggest button, it should work once connected to flask and jinja, its not all the form but is enough for this milestone.
+
+database.py is the real python sqlite schema of all course tables, all requirement tables, and the agentlog table, and the schedule session tables. 
