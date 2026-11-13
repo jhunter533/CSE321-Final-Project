@@ -2,7 +2,7 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8">
-		<title>NMT Scheduler - Course Suggestiong Form</title>
+		<title>NMT Scheduler - Course Suggestion Form</title>
 	</head>
 	<body>
 		<h1> Suggest a Course</h1>
@@ -66,6 +66,8 @@
 			<br>
 			<button type="submit">Suggest Course</button>
 		</form>
+		<h2>My Schedule:</h2>
+		<ul id="scheduleList"></ul>
 		{% if response %}
 			<hr>
 			<h2> AI Response</h2>
@@ -73,5 +75,110 @@
 				{{ response }}
 			</p>
 		{% endif %}
+		{% if results %}
+			{% for r in results %}
+				<h3>Tool: {{ r.tool }}</h3>
+				<p>Input: {{ r.input }}</p>
+				{% if not r.output.success %}
+					<p>Error: {{ r.output.error}}</p>
+				{% elif r.tool == "check_conflicts" %}
+					<p>
+						{% if r.output.conflict %}
+							Conflict: {{ r.output.reasons | join("; ")}}
+						{% else %}
+							No conflict
+						{% endif %}
+					</p>
+				{% elif r.output.sections %}
+					{% if r.output.removed %}
+						<p>{{ r.output.removed }} sections were hidden (Schedule conflict, avoided day, or it is already on your schedule) </p>
+					{% endif %}
+					<ul>
+						{% for s in r.output.sections %}
+							<li>
+								{{ s.subject }} {{ s.course_number }}-{{s.section_number}}
+								{{ s.title }} (CRN {{ s.crn }}, {{s.credit_hours}} hrs)
+								{% for m in s.meetings %}
+									- {{ m.days }} {{m.start_time | hhmm }}-{{ m.end_time | hhmm }}
+								{% endfor %}
+								{% if r.tool == "search_courses" %}
+									<button type="button" onclick="addSection({{ s.section_id }}, this)">Add</button>
+								{% endif %}
+							</li>
+						{% endfor %}
+					</ul>
+				{% elif r.tool == "search_courses" %}
+					<p> No sections fit your schedule and constraints ({{ r.output.removed }} hidden). </p>
+				{% elif r.tool == "get_schedule" %}
+					<p> Your schedule is empty. </p>
+				{% else %}
+					<p> Nothing was returned. </p>
+				{% endif %}
+			{% endfor %}
+		{% endif %}
+		<script>
+			// Function converts meeting times stored as minutes into a readable time
+			function formatTime(minutes) {
+				if (minutes === null || minutes === undefined) {
+					return "TBA";
+				}
+				const hours = String(Math.floor(minutes / 60)).padStart(2, "0");
+				const min = String(minutes % 60).padStart(2, "0");
+				return hours + ":" + min;
+			}
+			
+			// Get the student's current schedule and display it on webpage
+			async function refreshSchedule() {
+				// send request to Flask, then convert response into JSON 
+				const response = await fetch("/api/tools/get_schedule");
+				const data = await response.json();
+				const list = document.getElementById("scheduleList");
+				list.innerHTML = "";
+				
+				// Check if the schedule is empty. If it is, create am empty schedule list item
+				if(!data.success || data.sections.length === 0) {
+					const emptyItem = document.createElement("li");
+					emptyItem.textContent = "Your schedule is empty.";
+					list.appendChild(emptyItem);
+					return;
+				}
+				
+				// If the schedule is not empty, then the loop goes through the chosen courses
+				for (const section of data.sections) {
+					let text = section.subject + " " + section.course_number + "-" + section.section_number + " " + section.title;
+					
+					// Loop through meeting times associated with section
+					for (const meeting of section.meetings) {
+						text += " - " + meeting.days + " " + formatTime(meeting.start_time) + "-" + formatTime(meeting.end_time);
+					}
+					
+					// Create a new list item
+					const item = document.createElement("li");
+					item.textContent = text;
+					list.appendChild(item);
+				}
+			}
+			
+			// Add a course section to the student's schedule
+			async function addSection(sectionID, button){
+				// Send a POST request
+				const response = await fetch("/api/tools/add_to_schedule", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({section_id: sectionID})});
+				
+				// Convert the response into JSON
+				const data = await response.json();
+
+				// Update the button text and disable it
+				button.textContent = data.success ? "Added" : data.error;
+				button.disabled = data.success;
+
+				// Refresh the student's schedule if the course was added successfully
+				if (data.success) {
+					refreshSchedule();
+				}
+			}
+
+			// called as soon as the browser executes the script
+			refreshSchedule();
+		</script>
 	</body>
 </html>
