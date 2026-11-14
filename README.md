@@ -60,9 +60,9 @@ python main.py --term 202730
 ### Start the Backend
 Run the following commands in the repo folder:
 ```
-python -m venv venv
-source venv/Scripts/activate
-pu -m pip install flask requests python-dotevn beautifulsoup4
+python -m venv env
+source env/bin/activate (source env/Scripts/activate depending on os)
+python -m pip install flask requests python-dotenv beautifulsoup4
 
 flask run --debug
 ```
