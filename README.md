@@ -38,20 +38,53 @@ The approved project proposal does not user permanent user accounts. Instead eac
 ## Running the Application
 ### Requirements
 Python 3 and the following:
-- Flask
+- flask
 - requests
-- dotenv
+- python-dotenv
 - beautifulsoup4
 
 ### Environment Variables
+create a .env file with:
+```
+FLASK_SECRET_KEY=(Randomly generated string: "secrets.token_hex(32))"
+OPENROUTER_API_KEY=(Key from openrouter.ai)
+OPENROUTER_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free
+DB_PATH=nmt_scheduler.db
+```
+
 ### Populate the Database
 The database is already populated and provided in `nmt_scheduler.db`. To repopulate the database after deleting any existing one run:
 ```bash
 python main.py --term 202730
 ```
 ### Start the Backend
+Run the following commands in the repo folder:
+```
+python -m venv venv
+source venv/Scripts/activate
+pu -m pip install flask requests python-dotevn beautifulsoup4
+
+flask run --debug
+```
+
+Open http://127.0.0.1:5000/agent.
+
 ## REST Endpoints and Agent Tools
+| Servlet/Flask Route | URL | Method | Agent Tool |
+|---|---|---|---|
+| 'APIsearchCourses()' | '/api/tools/search_courses' | GET | 'search_courses' | 
+| 'APIcheckConflicts()' | '/api/tools/check_conflicts' | POST | 'check_conflicts' |
+| 'APIgetSchedule()' | '/api/tools/get_schedule' | GET | 'get_schedule' |
+| 'APIaddToSchedule()' | '/api/tools/add_to_schedule' | POST | 'add_to_schedule' |
+
 ## Agent Implementation
+1. Student Input: The student selects a Requirement or Subject and optionally chooses a day to avoid
+2. LLM Request: Application sends the student's request as a goal to the AI agent through OpenRouter
+3. Tool Selection: The AI requests the necessary tools to complete the goal
+4. Tool Execution: The Flask backend validates the request args and executes the tools using the SQLite Database and the backend service functions
+5. Conflict Filtering: The agent results are filtered to only include valid courses that won't conflict with the student's schedule and the goal sentence by the student
+6. Display Results: The application displays the AI response on the webpage.
+
 ## Database Scripts
 `sql/schema.sql` contains all sql code run the creates the project schema. This file will not work properly outside of python as it requires the course data to exist which is only true if in the python files.
 
@@ -62,5 +95,7 @@ python main.py --term 202730
 Implemented the course data and scheduling backend. Created the NMT Banweb scraper and parser, designed and populated the SQLite schema for courses, sections, meetings, instructors, and education requirements, schedules, and agent logs. Implemented schedule persistence logic. Implemented course-search,conflict-checking, and add-to-schedule service functions that directly deal with the database.
 
 ### Francisco Alejos
+Built the web and agent layers for the project. Wrote the Flask app with session identity and the JSON tool endpoints, which also includes input validation. Added server side conflict checking along with implementing the OpenRouter integration to have an operating AI agent. Extended the frontend to include the agent results and a functional scheduler that allows students to add classes.
+
 ## AI Assistance
 ChatGPT was used during development to ensure database design made sense and for occasional bug fixing with sql code and parsing integration. All suggestions were reviewed, modified, and tested before any inclusion in the project.
