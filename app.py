@@ -1,11 +1,13 @@
 import os
 import sqlite3
 import uuid
+
+from dotenv import load_dotenv
+from flask import Flask, jsonify, render_template, request, session
+
+import agent
 import database
 import tools
-import agent
-from dotenv import load_dotenv
-from flask import Flask, jsonify, request, session, render_template
 
 # Load .env file into Python environment
 load_dotenv()
@@ -125,7 +127,7 @@ def agentPage():
                 avoidDay = tools.cleanAvoidDay(request.form.get("avoid_day"))
             except tools.ValidationError as e:
                 page["response"] = f"Error: {e}"
-                return render_template("agent.html", **page), 400
+                return render_template("index.html", **page), 400
 
             # Create the AI agent's goal
             goal = f"Find sections for {query} that fit the current schedule."
@@ -137,7 +139,7 @@ def agentPage():
                 outcome = agent.runAgent(connection, sid, scheduleID, goal)
             except agent.AgentError as e:
                 page["response"] = f"Agent error: {e}"
-                return render_template("agent.html", **page), 502
+                return render_template("index.html", **page), 502
 
             # apply the scheduling constraints in order to only display the valid courses
             tools.applyConstraints(connection, scheduleID, outcome["tool_results"], avoidDay)
@@ -146,7 +148,7 @@ def agentPage():
             page["response"] = outcome["message"] or "The agent ran the following tools:"
             page["results"] = outcome["tool_results"]
 
-        return render_template("agent.html", **page)
+        return render_template("index.html", **page)
     except sqlite3.Error:
         connection.rollback()
         app.logger.exception("database error from /agent")

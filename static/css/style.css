@@ -1,0 +1,435 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+    background: #f2f3f5;
+    color: #202124;
+}
+
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+/* =====================================================
+   HEADER
+   ===================================================== */
+.topbar {
+    height: 72px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom:
+        1px solid #d5d8dd;
+    background: white;
+}
+
+.topbar h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.topbar p {
+    margin:
+        3px
+        0
+        0;
+    color: #707680;
+    font-size: 0.85rem;
+}
+
+.schedule-file-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.schedule-file-button {
+    padding:
+        7px
+        11px;
+    border:
+        1px solid #aeb4bc;
+    border-radius: 5px;
+    background: #f7f8fa;
+    color: #6a717b;
+    font-size: 0.78rem;
+    cursor: default;
+}
+
+.schedule-file-button:disabled {
+    opacity: 0.7;
+}
+
+/* =====================================================
+   MAIN LAYOUT
+   ===================================================== */
+.main-layout {
+    width: 100%;
+    height:
+        calc(100vh - 72px);
+    display: grid;
+    grid-template-columns:
+        minmax(360px, 28fr)
+        minmax(520px, 52fr)
+        minmax(260px, 20fr);
+    gap: 10px;
+    padding: 10px;
+    overflow: hidden;
+}
+
+.panel {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border:
+        1px solid #d6d9de;
+    border-radius: 7px;
+    background: white;
+}
+
+.panel-heading {
+    flex-shrink: 0;
+    padding:
+        12px
+        14px;
+    border-bottom:
+        1px solid #dedfe3;
+    background: #fafafa;
+}
+
+.panel-heading h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* =====================================================
+   SEARCH PANEL
+   ===================================================== */
+.search-controls {
+    flex-shrink: 0;
+    padding: 10px;
+    border-bottom:
+        1px solid #e3e5e8;
+}
+
+#course-search {
+    width: 100%;
+    padding:
+        9px
+        10px;
+    border:
+        1px solid #b9bec6;
+    border-radius: 5px;
+}
+
+#course-search:focus {
+    outline:
+        2px solid #8699b5;
+    outline-offset: 1px;
+}
+
+.search-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 7px;
+    color: #727983;
+    font-size: 0.73rem;
+}
+
+#clear-search {
+    padding: 2px 5px;
+    border: 0;
+    background: transparent;
+    color: #526883;
+    cursor: pointer;
+}
+
+.course-results {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 7px;
+    background: #f4f5f7;
+}
+
+/* =====================================================
+   COURSE CARD
+   ===================================================== */
+
+.meeting-list {
+    margin-top: 11px;
+    border-top:
+        1px solid #eceef1;
+}
+
+.meeting-row {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(120px, 0.7fr);
+    gap: 14px;
+    align-items: center;
+    padding:
+        9px
+        0;
+    border-bottom:
+        1px solid #eceef1;
+    font-size: 0.78rem;
+}
+
+.meeting-row:last-child {
+    border-bottom: none;
+}
+
+.meeting-schedule {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.meeting-type {
+    display: inline-block;
+    padding:
+        3px
+        6px;
+    border-radius: 4px;
+    background: #eceef2;
+    color: #4e5661;
+    font-size: 0.67rem;
+    font-weight: 600;
+}
+
+.meeting-time {
+    color: #505762;
+}
+
+.meeting-instructor {
+    color: #6b727c;
+    text-align: right;
+}
+
+.course-card {
+    margin-bottom: 11px;
+    padding:
+        15px
+        16px;
+    border:
+        1px solid #d2d6dd;
+    border-radius: 8px;
+    background: white;
+}
+
+.course-card:last-child {
+    margin-bottom: 0;
+}
+
+.course-card:hover {
+    border-color: #939ba8;
+}
+
+.course-card.scheduled {
+    border-left:
+        4px solid #657fa8;
+}
+
+.course-top-row {
+    display: flex;
+    justify-content:
+        space-between;
+    align-items: baseline;
+    gap: 16px;
+}
+
+.course-title {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.course-code {
+    flex-shrink: 0;
+    color: #394252;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.course-meta {
+    margin-top: 6px;
+    color: #757c87;
+    font-size: 0.73rem;
+}
+
+.course-actions {
+    display: flex;
+    justify-content:
+        flex-end;
+    margin-top: 11px;
+}
+
+.add-button {
+    padding:
+        7px
+        11px;
+    border:
+        1px solid #758195;
+    border-radius: 6px;
+    background: white;
+    color: #303846;
+    font-size: 0.76rem;
+    cursor: pointer;
+}
+
+.add-button:hover:not(:disabled) {
+    background: #eef0f4;
+}
+
+.add-button:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+/* =====================================================
+   MIDDLE SCHEDULE
+   ===================================================== */
+.schedule-results {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px;
+    background: #fafafa;
+}
+
+.schedule-card {
+    display: grid;
+    grid-template-columns:
+        1fr
+        auto;
+    gap: 15px;
+    margin-bottom: 12px;
+    padding: 14px 16px;
+    border:
+        1px solid #d5d8dd;
+    border-radius: 7px;
+    background: white;
+}
+
+.schedule-card-title {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.schedule-card-code {
+    margin-top: 4px;
+    color: #4c5561;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.schedule-meetings {
+    margin-top: 8px;
+    color: #646b74;
+    font-size: 0.8rem;
+}
+
+.schedule-meeting {
+    margin-top: 4px;
+}
+
+.remove-button {
+    align-self: start;
+    padding:
+        7px
+        10px;
+    border:
+        1px solid #a5a9af;
+    border-radius: 5px;
+    background: #f5f5f5;
+    color: #555d67;
+    cursor: pointer;
+    font-size: 0.75rem;
+}
+
+.remove-button:hover {
+    background: #e8e8e8;
+}
+
+/* =====================================================
+   AGENT PANEL
+   ===================================================== */
+.agent-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    color: #5f6670;
+    font-size: 0.8rem;
+}
+
+.agent-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 15px;
+}
+
+.agent-content label {
+    margin-top: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.agent-content select {
+    width: 100%;
+    padding: 7px;
+    border:
+        1px solid #c6c9ce;
+    border-radius: 5px;
+}
+
+.agent-button {
+    margin-top: 8px;
+    padding: 8px;
+    border:
+        1px solid #8993a1;
+    border-radius: 5px;
+    background: white;
+    cursor: pointer;
+}
+
+.agent-response {
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top:
+        1px solid #dedfe3;
+}
+
+/* =====================================================
+   COMMON
+   ===================================================== */
+.empty-message {
+    padding: 20px;
+    color: #858a92;
+    text-align: center;
+    font-size: 0.78rem;
+}
+

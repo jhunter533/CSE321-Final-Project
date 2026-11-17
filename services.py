@@ -11,6 +11,7 @@ DAY_CODES={
         "Saturday":"S",
         "Sunday":"U",
 }
+
 def _meeting_days(days:str)->set[str]:
     if not days:
         return set()
@@ -43,8 +44,66 @@ def _subjects_for_requirements(conn,requirement_code:str)->list[str]:
     for (child_code,) in children:
         subjects.update(_subjects_for_requirements(conn,child_code))
     return sorted(subjects)
+
+def _get_meetings(conn,section_id:int)->list[dict]:
+    rows=conn.execute(
+        """
+        SELECT meeting_id,days,start_time,end_time, location, meeting_type FROM Meeting
+        WHERE section_id=?
+        ORDER BY meeting_id
+        """,
+        (section_id,),
+    ).fetchall()
+    meetings = []
+    for row in rows:
+        meeting_id = row[0]
+        instructor_rows = conn.execute(
+            """
+            SELECT i.name
+            FROM MeetingInstructor AS mi
+            JOIN Instructor AS i
+                ON mi.instructor_id =
+                   i.instructor_id
+            WHERE mi.meeting_id = ?
+            ORDER BY i.name
+            """,
+            (meeting_id,),
+        ).fetchall()
+        instructors = [
+            instructor[0]
+            for instructor in instructor_rows
+        ]
+        meetings.append(
+            {
+                "meeting_id": meeting_id,
+                "days":row[1],
+                "start_time":row[2],
+                "end_time":row[3],
+                "location":row[4],
+                "meeting_type":row[5],
+                "instructors":instructors,
+            }
+        )
+    return meetings
+
+def _section_dict(conn,row)->dict:
+    section_id=row[4]
+    return {
+            "course_id":row[0],
+            "subject":row[1],
+            "course_number":row[2],
+            "title":row[3],
+            "section_id":section_id,
+            "crn":row[5],
+            "section_number":row[6],
+            "credit_hours":row[7],
+            "term":row[8],
+            "meetings":_get_meetings(conn,section_id)
+    }
+
 def search_courses(conn,requirement_or_subject: str,term:str|None=None)->dict:
-    value=requirement_or_subject.strip().upper()
+    value=requirement_or_subject.strip().upper().replace("AREA ","AREA")
+
     if not value:
         return {
                 "success":False,
@@ -95,54 +154,68 @@ def search_courses(conn,requirement_or_subject: str,term:str|None=None)->dict:
         """,
         (*subjects,term),
     ).fetchall()
-    sections=[]
-    for row in rows:
-        section_id=row[4]
-        meeting_rows=conn.execute(
+    sections=[_section_dict(conn,row) for row in rows]
+    return {
+        "success":True,
+        "filter":value,
+        "term":term,
+        "sections":sections,
+    }
+
+def get_sections(conn,course_id:int,term:str|None=None)->dict:
+    if not isinstance(course_id,int) or course_id<=0:
+        return {
+                "success":False,
+                "error":"course_id must be positive integer"
+        }
+    if term is None:
+        row=conn.execute(
             """
-            SELECT
-                days,
-                start_time,
-                end_time,
-                location,
-                meeting_type
-            FROM Meeting
-            WHERE section_id=?
-            ORDER BY meeting_id
-            """,
-            (section_id,),
-        ).fetchall()
-        meetings=[
-            {
-                "days":meeting[0],
-                "start_time":meeting[1],
-                "end_time":meeting[2],
-                "location":meeting[3],
-                "meeting_type":meeting[4],
+            SELECT MAX(term)
+            FROM Section
+            """
+        ).fetchone()
+        if row is None or row[0] is None:
+            return {
+                    "success":False,
+                    "error":"No semester data exits"
             }
-            for meeting in meeting_rows
-        ]
-        sections.append(
-            {
-                "course_id":row[0],
-                "subject":row[1],
-                "course_number":row[2],
-                "title":row[3],
-                "section_id":row[4],
-                "crn":row[5],
-                "section_number":row[6],
-                "credit_hours":row[7],
-                "term":row[8],
-                "meetings":meetings,
-            }
-        )
+        term=row[0]
+    rows=conn.execute(
+        """
+        SELECT 
+            c.course_id,
+            c.subject,
+            c.course_number,
+            c.title,
+            s.section_id,
+            s.crn,
+            s.section_number,
+            s.credit_hours,
+            s.term
+        FROM Course AS c
+        JOIN Section AS s
+            ON c.course_id = s.course_id
+        WHERE
+            c.course_id = ?
+            AND s.term = ?
+        ORDER BY s.section_number
+        """,
+        (course_id,term),
+    ).fetchall()
+    if not rows:
+        return{
+                "success":False,
+                "error":"Course or sections do not exist"
+        }
     return {
             "success":True,
-            "filter":value,
+            "course_id":course_id,
             "term":term,
-            "sections":sections,
+            "section":[_section_dict(conn,row) for row in rows],
     }
-def check_conflicts(conn,schedule_id,section_id,avoid_day)->dict:
+
+def check_conflicts(conn,schedule_id:str,section_id:int,avoid_day:str|None=None)->dict:
     candidate=conn.execute(
         """
         SELECT
@@ -243,6 +316,30 @@ def check_conflicts(conn,schedule_id,section_id,avoid_day)->dict:
             "conflict":bool(reasons),
             "reasons":reasons,
     }
+
+def get_schedule(conn,schedule_id:str)->dict:
+    schedule=conn.execute(
+        """
+        SELECT schedule_id
+        FROM Schedule
+        WHERE schedule_id=?
+        """,
+        (schedule_id,),
+    ).fetchone()
+    if schedule is None:
+        return {
+                "success":False,
+                "error":"Schedule does not exist"
+        }
+    sections=database.get_schedule(conn,schedule_id)
+    for section in sections:
+        section["meetings"]=(_get_meetings(conn,section["section_id"]))
+    return {
+            "success":True,
+            "schedule_id":schedule_id,
+            "sections":sections
+    }
+
 def add_to_schedule(conn,schedule_id:str,section_id:int)->dict:
     schedule=conn.execute(
         """
@@ -258,3 +355,19 @@ def add_to_schedule(conn,schedule_id:str,section_id:int)->dict:
                 "error":"Schedule does not exist",
         }
     return database.add_section_to_schedule(conn,schedule_id,section_id)
+
+def remove_from_schedule(conn,schedule_id:str,section_id:int)->dict:
+    schedule=conn.execute(
+        """
+        SELECT schedule_id
+        FROM Schedule
+        WHERE schedule_id=?
+        """,
+        (schedule_id,),
+    ).fetchone()
+    if schedule is None:
+        return {
+                "success":False,
+                "error":"schedule does not exist"
+        }
+    return (database.remove_section_from_schedule(conn,schedule_id,section_id))

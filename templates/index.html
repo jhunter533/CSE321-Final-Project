@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NMT Scheduler</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        window.NMT_SUBJECTS = [
+            {% for subject in subjects %}
+                {{ subject | tojson }}
+                {% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        window.NMT_REQUIREMENTS = [
+            {% for requirement in requirements %}
+                {{ requirement.code | tojson }}
+                {% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+    </script>
+
+    <script src="{{ url_for('static', filename='js/scheduler.js') }}" defer></script>
+</head>
+
+<body>
+    <header class="topbar">
+        <div>
+            <h1>NMT Scheduler</h1>
+            <p>
+                Search courses and build your schedule.
+            </p>
+        </div>
+        <div class="schedule-file-actions">
+            <button type="button" class="schedule-file-button" disabled>
+                Import Schedule
+            </button>
+
+            <button type="button" class="schedule-file-button" disabled>
+                Export Schedule
+            </button>
+        </div>
+    </header>
+    <main class="main-layout">
+        <section class="panel search-panel">
+
+            <div class="panel-heading">
+                <h2>
+                    Course Search
+                </h2>
+            </div>
+            <div class="search-controls">
+                <input type="search" id="course-search" placeholder="CSCI, 344, title, instructor, AREA 7..." autocomplete="off">
+                <div class="search-meta">
+                    <span id="result-count">
+                        Loading courses...
+                    </span>
+                    <button id="clear-search" type="button">
+                        Clear
+                    </button>
+                </div>
+            </div>
+            <div id="course-results" class="course-results">
+                <p class="empty-message">
+                    Loading course data...
+                </p>
+            </div>
+        </section>
+        <section class="panel schedule-panel">
+            <div class="panel-heading">
+                <h2>
+                    Schedule
+                </h2>
+            </div>
+            <div id="schedule-results" class="schedule-results">
+                <p class="empty-message">
+                    Loading schedule...
+                </p>
+            </div>
+        </section>
+        <section class="panel agent-panel">
+            <div class="panel-heading">
+                <h2>
+                    Course Suggestions
+                </h2>
+            </div>
+            <div class="agent-content">
+                <p>
+                    AI course suggestion interface
+                    will be integrated here.
+                </p>
+
+                <form method="POST" action="/agent">
+                    <label for="requirement_section">
+                        Requirement / Subject
+                    </label>
+                    <select id="requirement_section" name="requirement_section">
+                        <option value="">
+                            Select...
+                        </option>
+                        <optgroup label="General Education Areas">
+                            {% for requirement in requirements %}
+                                <option value="{{ requirement.code }}">
+                                    {{ requirement.code }}
+                                    -
+                                    {{ requirement.name }}
+                                </option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Subjects">
+                            {% for subject in subjects %}
+                                <option value="{{ subject }}">
+                                    {{ subject }}
+                                </option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                    <label for="avoid_day">
+                        Avoid Day
+                    </label>
+
+                    <select id="avoid_day" name="avoid_day">
+                        <option value="">
+                            No restriction
+                        </option>
+                        <option value="Monday">
+                            Monday
+                        </option>
+                        <option value="Tuesday">
+                            Tuesday
+                        </option>
+                        <option value="Wednesday">
+                            Wednesday
+                        </option>
+                        <option value="Thursday">
+                            Thursday
+                        </option>
+                        <option value="Friday">
+                            Friday
+                        </option>
+                        <option value="Saturday">
+                            Saturday
+                        </option>
+                        <option value="Sunday">
+                            Sunday
+                        </option>
+                    </select>
+
+                    <button type="submit" class="agent-button">
+                        Suggest Course
+                    </button>
+                </form>
+                {% if response %}
+                    <div class="agent-response">
+                        <h3>
+                            Agent Response
+                        </h3>
+                        <p>
+                            {{ response }}
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>
